@@ -2,18 +2,59 @@ package main
 
 import(
   "bufio"
+  "encoding/base64"
   "fmt"
   "os"
+  "path"
   "strings"
 )
 
-func print(s string) {
-  fmt.Println(s)
+type File struct {
+  BasePath string
+  Name string
 }
 
-func createFile(s *bufio.Scanner) {
-  line := s.Text()
-  print(line)
+func (of *File) createFile(s *bufio.Scanner) {
+  location := "Content-Location"
+  var line string
+  for s.Scan() {
+    line = s.Text()
+    if strings.Contains(line, location) {
+      of.Name = line[strings.LastIndex(line, "/")+1: ]
+      print(of.Name)
+      break
+    }
+  }
+
+  // Ignore next empty line.
+  if !s.Scan() {
+    // Return if scanner arrive at last boundary separator.
+    return
+  }
+  line = s.Text()
+
+  f, err := os.Create(path.Join(of.BasePath, of.Name))
+  defer f.Close()
+  if err != nil {
+    panic(err)
+  }
+
+  enc := base64.StdEncoding
+  for s.Scan() {
+    line = s.Text()
+    if len(line) == 0 {
+      break
+    }
+    data, err := enc.DecodeString(line)
+    _, err = f.Write(data)
+    if err != nil {
+      panic(err)
+    }
+  }
+}
+
+func print(s string) {
+  fmt.Println(s)
 }
 
 func main() {
@@ -38,15 +79,14 @@ func main() {
     if strings.Contains(line, "boundary") {
       a := strings.Split(line, "=")
       boundary = strings.Trim(a[1], "\";")
-      print("boundary:" + boundary)
-
     } else if boundary != "" && strings.Contains(line, boundary) {
-      createFile(scanner)
+      file := File{
+        BasePath: "./output",
+      }
+      file.createFile(scanner)
     }
-    //print(line)
   }
   if err := scanner.Err(); err != nil {
     panic(err)
   }
-
 }

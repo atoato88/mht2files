@@ -1,2 +1,5 @@
 mht2files
 data/*
+output/*
+!output/.gitkeep
+.DS_Store
